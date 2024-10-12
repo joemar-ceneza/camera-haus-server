@@ -5,6 +5,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectToDb = require("./config/connectToDb");
+const productRoutes = require("./routes/product");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,9 +17,7 @@ app.use(express.json());
 // connect to database
 connectToDb();
 
-app.get("/", (req, res) => {
-  res.send("Hello from the MERN stack server!");
-});
+app.use("/api/products", productRoutes);
 
 // start the server
 app.listen(PORT, () => {

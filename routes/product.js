@@ -39,4 +39,32 @@ router.get("/", async (req, res) => {
   }
 });
 
+// delete a product by id with image upload
+router.delete("/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    if (product.image) {
+      const publicId = product.image
+        .split("/")
+        .slice(-4)
+        .join("/")
+        .split(".")[0];
+      try {
+        await cloudinary.uploader.destroy(publicId);
+      } catch (error) {
+        console.error("Error deleting image from Cloudinary: ", error);
+        return res
+          .status(500)
+          .json({ error: "Failed to delete image from Cloudinary" });
+      }
+    }
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ message: "Product and associated image deleted" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

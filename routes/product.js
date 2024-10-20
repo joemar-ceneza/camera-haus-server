@@ -39,6 +39,17 @@ router.get("/", async (req, res) => {
   }
 });
 
+// update a product by id with image upload
+router.put(
+  "/:id",
+  uploadProductImage.single("image", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const imageUrl = req.file ? req.file.path : undefined;
+    } catch (error) {}
+  })
+);
+
 // delete a product by id with image upload
 router.delete("/:id", async (req, res) => {
   try {

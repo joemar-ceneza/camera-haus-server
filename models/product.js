@@ -26,11 +26,7 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    salePrice: {
-      type: Number,
-      default: 0,
-    },
-    isBSeller: {
+    isNewProduct: {
       type: Boolean,
       default: false,
     },
@@ -42,20 +38,23 @@ const productSchema = new mongoose.Schema(
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
-    }
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// pre-save hook to automatically generate a slug from the name
-productSchema.pre("save", function(next) {
-  if(this.isModified("title")) {
-    this.slug = this.name.toLowerCase().replace(/ /g, "-"). replace(/[^\w-]+/g, "")
+// pre-save hook to automatically generate a slug from the title
+productSchema.pre("save", function (next) {
+  if (this.isModified("title")) {
+    this.slug = this.title
+      .toLowerCase()
+      .replace(/ /g, "-")
+      .replace(/[^\w-]+/g, "");
   }
   next();
-})
+});
 
 const Product = mongoose.model("Product", productSchema);
 

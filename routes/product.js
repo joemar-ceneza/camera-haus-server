@@ -52,48 +52,74 @@ router.get("/", async (req, res) => {
 });
 
 // update a product by id with image upload
-router.put(
-  "/:id",
-  uploadProductImage.single("image", async (req, res) => {
-    try {
-      const { title } = req.body;
-      const imageUrl = req.file ? req.file.path : undefined;
+router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      regularPrice,
+      isNewProduct,
+      quantity,
+      category,
+    } = req.body;
 
-      if (imageUrl) {
-        if (product.image) {
-          const publicId = product.image
-            .split("/")
-            .slice(-4)
-            .join("/")
-            .split(".")[0];
-          try {
-            await cloudinary.uploader.destroy(publicId);
-          } catch (error) {
-            console.error("Error deleting old image from Cloudinary", error);
-            return res
-              .status(500)
-              .json({ error: "Failed to delete old image from Cloudinary" });
-          }
-        }
-      }
-      const updateProduct = await product.save();
-      res.json(updateProduct);
-    } catch (error) {
-      if (req.file && req.file.path) {
-        const publicId = req.file.filename.split(".")[0];
+    const imageUrl = req.file ? req.file.path : undefined;
+
+    let product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    if (title) {
+      product.title = title;
+      product.slug = title
+        .toLowerCase()
+        .replace(/ /g, "-")
+        .replace(/[^\w-]+/g, "");
+    }
+
+    if (description) product.description = description;
+    if (regularPrice) product.regularPrice = regularPrice;
+    if (typeof isNewProduct !== "undefined")
+      product.isNewProduct = isNewProduct === "true";
+    if (quantity) product.quantity = quantity;
+    if (category) product.category = category;
+
+    if (imageUrl) {
+      if (product.image) {
+        const publicId = product.image
+          .split("/")
+          .slice(-4)
+          .join("/")
+          .split(".")[0];
         try {
           await cloudinary.uploader.destroy(publicId);
         } catch (error) {
-          console.error(
-            "Error deleting new image from Cloudinary after update failed: ",
-            error
-          );
+          console.error("Error deleting old image from Cloudinary", error);
+          return res
+            .status(500)
+            .json({ error: "Failed to delete old image from Cloudinary" });
         }
       }
-      res.status(400).json({ error: error.message });
+      product.image = imageUrl;
     }
-  })
-);
+
+    const updatedProduct = await product.save();
+    res.json(updatedProduct);
+  } catch (error) {
+    if (req.file && req.file.path) {
+      const publicId = req.file.filename.split(".")[0];
+      try {
+        await cloudinary.uploader.destroy(publicId);
+      } catch (error) {
+        console.error(
+          "Error deleting new image from Cloudinary after update failed: ",
+          error
+        );
+      }
+    }
+    console.error("Update product error:", error);
+    res.status(400).json({ error: error.message });
+  }
+});
 
 // delete a product by id with image upload
 router.delete("/:id", async (req, res) => {

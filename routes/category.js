@@ -6,9 +6,9 @@ const router = express.Router();
 // create new category
 router.post("/", async (req, res) => {
   try {
-    const { name, products } = req.body;
+    const { title, products } = req.body;
     const newCategory = new Category({
-      name,
+      title,
       products,
     });
     const savedCategory = await newCategory.save();

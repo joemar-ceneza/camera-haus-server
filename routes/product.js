@@ -51,6 +51,35 @@ router.get("/", async (req, res) => {
   }
 });
 
+// router to get products based on query parameters
+router.get("/products", async (req, res) => {
+  try {
+    const { isNewProduct, slug } = req.query;
+    const filter = {};
+    if (isNewProduct) {
+      filter.isNewProduct = isNewProduct === "true";
+    }
+    if (slug) {
+      const product = await Product.findOne({ slug }).populate("category");
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      return res.json([
+        {
+          ...product.toObject(),
+        },
+      ]);
+    }
+    const products = await Product.find(filter).populate("category");
+    const productsWithCategory = products.map((product) => ({
+      ...product.toObject(),
+    }));
+    res.json(productsWithCategory);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // update a product by id with image upload
 router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
   try {

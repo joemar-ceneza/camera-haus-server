@@ -2,10 +2,6 @@ const mongoose = require("mongoose");
 
 const categorySchema = new mongoose.Schema(
   {
-    image: {
-      type: String,
-      required: true,
-    },
     title: {
       type: String,
       required: true,
@@ -29,7 +25,7 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-// pre-save hook to automatically generate a slug from the name
+// pre-save hook to automatically generate a slug from the title
 categorySchema.pre("save", function (next) {
   if (this.isModified("title")) {
     this.slug = this.title

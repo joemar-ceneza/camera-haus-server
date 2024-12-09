@@ -80,7 +80,7 @@ router.get("/products", async (req, res) => {
   }
 });
 
-// route to get products based on query parameters
+// route to fetch related products by category
 router.get("/products/:slug", async (req, res) => {
   try {
     const { slug } = req.params;

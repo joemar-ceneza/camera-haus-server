@@ -39,6 +39,31 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// route to get products by category slug
+router.get("/categories/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const category = await Category.findOne({ slug }).populate("products");
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // include the category slug in the response
+    res.json({
+      category: {
+        id: category._id,
+        name: category.name,
+        slug: category.slug,
+      },
+      products: category.products,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // delete a category id
 router.delete("/:id", async (req, res) => {
   try {

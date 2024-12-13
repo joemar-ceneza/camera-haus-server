@@ -53,7 +53,7 @@ router.get("/categories/:slug", async (req, res) => {
     res.json({
       category: {
         id: category._id,
-        name: category.name,
+        name: category.title,
         slug: category.slug,
       },
       products: category.products,

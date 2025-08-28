@@ -8,14 +8,7 @@ const router = express.Router();
 // create new product with image upload
 router.post("/", uploadProductImage.single("image"), async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      regularPrice,
-      isNewProduct,
-      quantity,
-      category,
-    } = req.body;
+    const { title, description, regularPrice, isNewProduct, quantity, category } = req.body;
     const imageUrl = req.file ? req.file.path : undefined;
     const newProduct = new Product({
       image: imageUrl,
@@ -54,26 +47,31 @@ router.get("/", async (req, res) => {
 // router to get products based on query parameters
 router.get("/products", async (req, res) => {
   try {
-    const { isNewProduct, slug } = req.query;
+    const { isNewProduct, slug, search } = req.query;
     const filter = {};
+
     if (isNewProduct) {
       filter.isNewProduct = isNewProduct === "true";
     }
+
     if (slug) {
       const product = await Product.findOne({ slug }).populate("category");
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      return res.json([
-        {
-          ...product.toObject(),
-        },
-      ]);
+      return res.json([product.toObject()]);
     }
+
+    if (search) {
+      // case-insensitive search by title
+      filter.title = { $regex: search, $options: "i" };
+    }
+
     const products = await Product.find(filter).populate("category");
     const productsWithCategory = products.map((product) => ({
       ...product.toObject(),
     }));
+
     res.json(productsWithCategory);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -107,14 +105,7 @@ router.get("/products/:slug", async (req, res) => {
 // update a product by id with image upload
 router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      regularPrice,
-      isNewProduct,
-      quantity,
-      category,
-    } = req.body;
+    const { title, description, regularPrice, isNewProduct, quantity, category } = req.body;
 
     const imageUrl = req.file ? req.file.path : undefined;
 
@@ -131,25 +122,18 @@ router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
 
     if (description) product.description = description;
     if (regularPrice) product.regularPrice = regularPrice;
-    if (typeof isNewProduct !== "undefined")
-      product.isNewProduct = isNewProduct === "true";
+    if (typeof isNewProduct !== "undefined") product.isNewProduct = isNewProduct === "true";
     if (quantity) product.quantity = quantity;
     if (category) product.category = category;
 
     if (imageUrl) {
       if (product.image) {
-        const publicId = product.image
-          .split("/")
-          .slice(-4)
-          .join("/")
-          .split(".")[0];
+        const publicId = product.image.split("/").slice(-4).join("/").split(".")[0];
         try {
           await cloudinary.uploader.destroy(publicId);
         } catch (error) {
           console.error("Error deleting old image from Cloudinary", error);
-          return res
-            .status(500)
-            .json({ error: "Failed to delete old image from Cloudinary" });
+          return res.status(500).json({ error: "Failed to delete old image from Cloudinary" });
         }
       }
       product.image = imageUrl;
@@ -163,10 +147,7 @@ router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
       try {
         await cloudinary.uploader.destroy(publicId);
       } catch (error) {
-        console.error(
-          "Error deleting new image from Cloudinary after update failed: ",
-          error
-        );
+        console.error("Error deleting new image from Cloudinary after update failed: ", error);
       }
     }
     console.error("Update product error:", error);
@@ -181,18 +162,12 @@ router.delete("/:id", async (req, res) => {
     if (!product) return res.status(404).json({ error: "Product not found" });
 
     if (product.image) {
-      const publicId = product.image
-        .split("/")
-        .slice(-4)
-        .join("/")
-        .split(".")[0];
+      const publicId = product.image.split("/").slice(-4).join("/").split(".")[0];
       try {
         await cloudinary.uploader.destroy(publicId);
       } catch (error) {
         console.error("Error deleting image from Cloudinary: ", error);
-        return res
-          .status(500)
-          .json({ error: "Failed to delete image from Cloudinary" });
+        return res.status(500).json({ error: "Failed to delete image from Cloudinary" });
       }
     }
     await Product.findByIdAndDelete(req.params.id);

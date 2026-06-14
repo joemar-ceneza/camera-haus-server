@@ -2,11 +2,16 @@ const express = require("express");
 const cloudinary = require("cloudinary").v2;
 const Product = require("../models/product");
 const { uploadProductImage } = require("../middleware/multer");
+const { requireAuth } = require("../middleware/auth");
+const { toClientError } = require("../utils/errors");
 
 const router = express.Router();
 
+// escape user input before using it inside a $regex query (prevents regex injection / ReDoS)
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // create new product with image upload
-router.post("/", uploadProductImage.single("image"), async (req, res) => {
+router.post("/", requireAuth, uploadProductImage.single("image"), async (req, res) => {
   try {
     const { title, description, regularPrice, isNewProduct, quantity, category } = req.body;
     const imageUrl = req.file ? req.file.path : undefined;
@@ -15,7 +20,8 @@ router.post("/", uploadProductImage.single("image"), async (req, res) => {
       title,
       description,
       regularPrice,
-      isNewProduct,
+      // form fields arrive as strings — coerce to a real boolean ("false" !== true)
+      isNewProduct: isNewProduct === "true",
       quantity,
       category,
     });
@@ -26,11 +32,13 @@ router.post("/", uploadProductImage.single("image"), async (req, res) => {
       const publicId = req.file.filename.split(".")[0];
       try {
         await cloudinary.uploader.destroy(publicId);
-      } catch (error) {
-        console.error("Error deleting image from Cloudinary: ", error);
+      } catch (cleanupError) {
+        console.error("Error deleting image from Cloudinary: ", cleanupError);
       }
     }
-    res.status(400).json({ error: error.message });
+    const { status, message } = toClientError(error);
+    console.error("[POST /api/products]", error);
+    res.status(status).json({ error: message });
   }
 });
 
@@ -40,7 +48,8 @@ router.get("/", async (req, res) => {
     const products = await Product.find();
     res.json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[GET /api/products]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -63,8 +72,8 @@ router.get("/products", async (req, res) => {
     }
 
     if (search) {
-      // case-insensitive search by title
-      filter.title = { $regex: search, $options: "i" };
+      // case-insensitive search by title (input escaped to prevent regex injection)
+      filter.title = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const products = await Product.find(filter).populate("category");
@@ -74,7 +83,8 @@ router.get("/products", async (req, res) => {
 
     res.json(productsWithCategory);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("[GET /api/products/products]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -98,12 +108,13 @@ router.get("/products/:slug", async (req, res) => {
     // respond with product details and related products
     res.json({ product, relatedProducts });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("[GET /api/products/products/:slug]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // update a product by id with image upload
-router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
+router.put("/:id", requireAuth, uploadProductImage.single("image"), async (req, res) => {
   try {
     const { title, description, regularPrice, isNewProduct, quantity, category } = req.body;
 
@@ -146,17 +157,18 @@ router.put("/:id", uploadProductImage.single("image"), async (req, res) => {
       const publicId = req.file.filename.split(".")[0];
       try {
         await cloudinary.uploader.destroy(publicId);
-      } catch (error) {
-        console.error("Error deleting new image from Cloudinary after update failed: ", error);
+      } catch (cleanupError) {
+        console.error("Error deleting new image from Cloudinary after update failed: ", cleanupError);
       }
     }
-    console.error("Update product error:", error);
-    res.status(400).json({ error: error.message });
+    const { status, message } = toClientError(error);
+    console.error("[PUT /api/products/:id]", error);
+    res.status(status).json({ error: message });
   }
 });
 
 // delete a product by id with image upload
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
@@ -173,7 +185,8 @@ router.delete("/:id", async (req, res) => {
     await Product.findByIdAndDelete(req.params.id);
     res.json({ message: "Product and associated image deleted" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[DELETE /api/products/:id]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

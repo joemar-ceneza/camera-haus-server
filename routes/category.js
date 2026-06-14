@@ -1,10 +1,12 @@
 const express = require("express");
 const Category = require("../models/category");
+const { requireAuth } = require("../middleware/auth");
+const { toClientError } = require("../utils/errors");
 
 const router = express.Router();
 
 // create new category
-router.post("/", async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   try {
     const { title, products } = req.body;
     const newCategory = new Category({
@@ -14,7 +16,9 @@ router.post("/", async (req, res) => {
     const savedCategory = await newCategory.save();
     res.status(201).json(savedCategory);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    const { status, message } = toClientError(error);
+    console.error("[POST /api/categories]", error);
+    res.status(status).json({ error: message });
   }
 });
 
@@ -24,7 +28,8 @@ router.get("/", async (req, res) => {
     const categories = await Category.find();
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[GET /api/categories]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -35,7 +40,8 @@ router.get("/:id", async (req, res) => {
     if (!category) return res.status(404).json({ error: "Category not found" });
     res.json(category);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[GET /api/categories/:id]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -46,7 +52,7 @@ router.get("/categories/:slug", async (req, res) => {
     const category = await Category.findOne({ slug }).populate("products");
 
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({ error: "Category not found" });
     }
 
     // include the category slug in the response
@@ -59,13 +65,13 @@ router.get("/categories/:slug", async (req, res) => {
       products: category.products,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("[GET /api/categories/categories/:slug]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // delete a category id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
     // find the category id
     const category = await Category.findById(req.params.id);
@@ -75,7 +81,8 @@ router.delete("/:id", async (req, res) => {
     await category.deleteOne();
     res.json({ message: "Category deleted" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("[DELETE /api/categories/:id]", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

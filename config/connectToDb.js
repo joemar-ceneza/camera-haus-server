@@ -7,6 +7,8 @@ async function connectToDb() {
     console.log("Connected to MongoDB");
   } catch (error) {
     console.error("Could not connect to MongoDB", error);
+    // fail fast — don't run the API against a database it can't reach
+    process.exit(1);
   }
 }
 
